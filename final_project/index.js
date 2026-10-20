@@ -11,15 +11,24 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/customer', session({
+// Session configuration
+const customerSession = session({
     secret: process.env.SESSION_SECRET || 'fingerprint_customer',
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: 'lax' }
-}));
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax'
+    }
+});
 
+app.use('/customer', customerSession);
+app.use('/login', customerSession);
+
+// JWT Authentication Middleware
 app.use('/customer/auth', (req, res, next) => {
     const header = req.headers.authorization || '';
+
     const bearerToken = header.startsWith('Bearer ')
         ? header.slice(7)
         : null;
@@ -38,6 +47,7 @@ app.use('/customer/auth', (req, res, next) => {
             token,
             process.env.JWT_SECRET || 'bookshop_course_demo_secret'
         );
+
         return next();
     } catch (error) {
         return res.status(401).json({
@@ -46,6 +56,12 @@ app.use('/customer/auth', (req, res, next) => {
     }
 });
 
+// Support login through /login
+app.post('/login', (req, res, next) => {
+    customer_routes(req, res, next);
+});
+
+// Existing routes
 app.use('/customer', customer_routes);
 app.use('/', genl_routes);
 
